@@ -1,0 +1,10 @@
+Binding: chunk_split_addin
+Name: Split Code Chunk
+Description: Splits code chunk at the cursor position.
+Interactive: false
+
+Binding: insert_in_addin
+Name: Insert %in%
+Description: Inserts `%in%` at the cursor position.
+Interactive: false
+
