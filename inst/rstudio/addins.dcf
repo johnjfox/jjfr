@@ -3,8 +3,17 @@ Name: Split Code Chunk
 Description: Splits code chunk at the cursor position.
 Interactive: false
 
+Binding: insert_image_addin
+Name: Insert image
+Description: Inserts image at the cursor position.
+Interactive: false
+
 Binding: insert_in_addin
 Name: Insert %in%
 Description: Inserts `%in%` at the cursor position.
 Interactive: false
 
+Binding: insert_link_addin
+Name: Insert link
+Description: Inserts link at the cursor position.
+Interactive: false
