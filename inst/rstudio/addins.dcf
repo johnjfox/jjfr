@@ -23,6 +23,11 @@ Name: Insert link
 Description: Inserts link at the cursor position.
 Interactive: false
 
+Binding: insert_multiassign_addin
+Name: Insert zeallot based multiassign
+Description: Inserts assign (%<-%) at the cursor position.
+Interactive: false
+
 Binding: insert_pipe_addin
 Name: Insert pipe
 Description: Inserts pipe at the cursor position.
