@@ -2,10 +2,12 @@
 #' TODO: not clear if this works for windows
 #' SOURCE: https://www.r-bloggers.com/identifying-the-os-from-r/
 #'
-#' @return
+#' @return one of "osx", "linux"
 #' @export
 #'
 #' @examples
+#'
+#' get_os()
 get_os <- function(){
 	sysinf <- Sys.info()
 	if (!is.null(sysinf)){

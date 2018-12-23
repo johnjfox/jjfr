@@ -4,6 +4,9 @@
 #' @export
 #'
 #' @examples
+#'
+#' get_shortcut_dir()
+#'
 get_shortcut_dir <- function() {
 	os <- get_os()
 	dir <- case_when(
@@ -21,7 +24,13 @@ get_shortcut_dir <- function() {
 #' @return
 #' @export
 #'
+#' @importFrom glue glue
+#'
 #' @examples
+#' get_shortcut_filenames()
+#'
+#' get_shortcut_filenames(local=T)
+#'
 get_shortcut_filenames <- function(local=F) {
 	if (local) {
 		dir = getwd()
@@ -44,6 +53,8 @@ get_shortcut_filenames <- function(local=F) {
 #' @return list containing three named lists
 #' @export
 #'
+#' @importFrom jsonlite fromJSON
+#'
 #' @examples
 get_keyboard_shortcuts <- function(local=F) {
 	f = get_shortcut_filenames(local)
@@ -63,8 +74,10 @@ get_keyboard_shortcuts <- function(local=F) {
 #' @return
 #' @export
 #'
+#' @importFrom devtools use_data
+#'
 #' @examples
-capture_shortcuts_package <- function(shortcuts) {
+capture_shortcuts_to_package <- function(shortcuts) {
 	use_data(shortcuts, internal=F)
 }
 
@@ -76,9 +89,13 @@ capture_shortcuts_package <- function(shortcuts) {
 #' @return
 #' @export
 #'
+#' @importFrom jsonlite toJSON
+#' @importFrom glue glue
+#' @importFrom readr write_lines
+#'
 #' @examples
 restore_keyboard_shortcuts <- function(shortcuts, local=T, overwrite=F) {
-	load_all()
+	devtools::load_all()
 	f = get_shortcut_filenames(local)
 
 	if (!overwrite) {
