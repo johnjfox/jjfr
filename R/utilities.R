@@ -23,6 +23,12 @@ get_os <- function(){
 }
 
 
+#' Title
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_shortcut_dir <- function() {
 	os <- get_os()
 	dir <- case_when(
@@ -32,6 +38,14 @@ get_shortcut_dir <- function() {
 	return(dir)
 }
 
+#' Title
+#'
+#' @param local
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_shortcut_filenames <- function(local=F) {
 	if (local) {
 		dir = getwd()
@@ -48,6 +62,8 @@ get_shortcut_filenames <- function(local=F) {
 }
 
 #' Title
+#'
+#' @param local
 #'
 #' @return
 #' @export
