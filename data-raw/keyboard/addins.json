@@ -1,0 +1,8 @@
+{
+    "jjf::chunk_split_addin" : "Shift+Cmd+]",
+    "jjf::insert_assign_addin" : "Shift+Cmd+=",
+    "jjf::insert_image_addin" : "Alt+Cmd+I",
+    "jjf::insert_in_addin" : "Shift+Cmd+/",
+    "jjf::insert_link_addin" : "Alt+Cmd+K",
+    "jjf::insert_pipe_addin" : "Shift+Cmd+\\"
+}
