@@ -1,31 +1,6 @@
-library(dplyr)
-library(glue)
-library(readr)
-library(jsonlite)
-
-# Determines the host operating system
-# TODO: not cler if this works for windows
-# SOURCE: https://www.r-bloggers.com/identifying-the-os-from-r/
-get_os <- function(){
-	sysinf <- Sys.info()
-	if (!is.null(sysinf)){
-		os <- sysinf['sysname']
-		if (os == 'Darwin')
-			os <- "osx"
-	} else { ## mystery machine
-		os <- .Platform$OS.type
-		if (grepl("^darwin", R.version$os))
-			os <- "osx"
-		if (grepl("linux-gnu", R.version$os))
-			os <- "linux"
-	}
-	tolower(os)
-}
-
-
-#' Title
+#' Determine the directory name for RStudio keybindings
 #'
-#' @return
+#' @return a string containing the name of the directory containing the keybindings
 #' @export
 #'
 #' @examples
@@ -38,7 +13,8 @@ get_shortcut_dir <- function() {
 	return(dir)
 }
 
-#' Title
+#' Build a list which contains three named lists, which are the names of the three
+#' files ued for RStudio keyboard shortcuts
 #'
 #' @param local
 #'
@@ -61,11 +37,11 @@ get_shortcut_filenames <- function(local=F) {
 	return(list(addinsFile=addinsFile,editorFile=editorFile,rstudioFile=rstudioFile))
 }
 
-#' Title
+#' Grab the RStudio keyboard shortcuts and return them as a named list
 #'
 #' @param local
 #'
-#' @return
+#' @return list containing three named lists
 #' @export
 #'
 #' @examples
@@ -78,7 +54,8 @@ get_keyboard_shortcuts <- function(local=F) {
 	return(list(addins=addins, editor=editor, rstudio=rstudio))
 }
 
-#' Title
+#' Grab the Rstudio keyboard shortcuts from the local user file structure
+#' and save them to a variable in the package
 #'
 #' @param shortcuts
 #' @param overwrite
@@ -87,11 +64,12 @@ get_keyboard_shortcuts <- function(local=F) {
 #' @export
 #'
 #' @examples
-save_shortcuts_package <- function(shortcuts) {
+capture_shortcuts_package <- function(shortcuts) {
 	use_data(shortcuts, internal=F)
 }
 
-#' Title
+#' restores RStudio keyboard shortcuts from the data saved to the package
+#' in the 'shortcuts' variable
 #'
 #' @param overwrite
 #'
@@ -99,7 +77,8 @@ save_shortcuts_package <- function(shortcuts) {
 #' @export
 #'
 #' @examples
-write_keyboard_shortcuts <- function(shortcuts, local=T, overwrite=F) {
+restore_keyboard_shortcuts <- function(shortcuts, local=T, overwrite=F) {
+	load_all()
 	f = get_shortcut_filenames(local)
 
 	if (!overwrite) {
