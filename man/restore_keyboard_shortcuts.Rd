@@ -10,6 +10,9 @@ restore_keyboard_shortcuts(shortcuts, local = T, overwrite = F)
 \arguments{
 \item{overwrite}{}
 }
+\value{
+
+}
 \description{
 restores RStudio keyboard shortcuts from the data saved to the package
 in the 'shortcuts' variable

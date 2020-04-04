@@ -10,6 +10,9 @@ get_shortcut_filenames(local = F)
 \arguments{
 \item{local}{}
 }
+\value{
+
+}
 \description{
 Build a list which contains three named lists, which are the names of the three
 files ued for RStudio keyboard shortcuts

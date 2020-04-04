@@ -10,6 +10,9 @@ capture_shortcuts_to_package(shortcuts)
 \arguments{
 \item{overwrite}{}
 }
+\value{
+
+}
 \description{
 Grab the Rstudio keyboard shortcuts from the local user file structure
 and save them to a variable in the package
