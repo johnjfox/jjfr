@@ -14,4 +14,4 @@ Imports:
     dplyr,
     glue,
     readr,
-    devtools
+    usethis
