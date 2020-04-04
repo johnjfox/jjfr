@@ -1,0 +1,483 @@
+---
+title: "Data Cleansing and Prep"
+author: "John J. Fox"
+date: "The Date"
+output: html_notebook
+---
+
+# SETUP
+
+## Libraries
+```{r setup, include=FALSE, echo=F}
+knitr::opts_chunk$set(echo = TRUE)
+
+# the basics
+library(tidyverse)
+library(purrr)
+library(lubridate)
+library(glue)
+library(forcats)
+library(stringr)
+library(vroom)
+library(janitor)
+library(readxl)
+library(knitr)
+library(textclean)
+
+# simple EDA
+library(skimr)
+library(inspectdf)
+
+# basic modeling and data prep
+library(recipes)
+
+# time series models
+library(tsibble)
+library(fable)
+library(feasts)
+
+# run times
+library(tictoc)
+
+# Default color palette
+
+## Keurig Color Palette
+black <- rgb(0,0,0)
+white <- rgb(255,255,255, maxColorValue =255)
+lightgrey <- rgb(224,224,224, maxColorValue =255)
+darkgrey  <- rgb(101,102, 102,maxColorValue =255)
+coffee <- rgb(126,61,50, maxColorValue =255)
+red <- rgb(192,0,67,maxColorValue =255)
+green <- rgb(105,184,50,maxColorValue =255)
+blue <- rgb(56,186,237,maxColorValue =255)
+
+# Functions that get included in many notebooks that will be delivered to clients
+copyxl <- function(df) {
+  write.table(df, "clipboard", sep="\t", row.names=FALSE)
+  return(df)
+}
+
+# useful logical abbreviations
+`%notin%` <- Negate(`%in%`)
+not_all_na <- function(x) any(!is.na(x))
+not_any_na <- function(x) all(isnt.na(x))
+all_na <- function(x) all(is.na(x))
+any_na <- function(x) any(is.na(x))
+not_na <-  Negate(is.na)
+
+# data cleansing functions
+is.char_logical <- function(x) {
+  logchar <- c("NO", "N", "YES", "Y")
+  if (is.character(x)) {
+    d <- unique(str_to_upper(x))
+    return(length(setdiff(d, logchar)) == 0)
+  }
+  return(FALSE)
+}
+
+# convenience function to recast a character column 
+logical_recode <- function(x) {
+  x <- x %>% 
+    str_to_upper() %>%
+    str_replace("YES", "Y")  %>%
+    str_replace("NO", "N") %>% 
+    str_replace("TRUE", "Y")  %>%  	
+    str_replace("FALSE", "N")  %>%  	  	
+  return(as.logical(recode(x, `Y`=1, `N`=0)))
+}
+
+# convenienve function to cast a column to a logical. 
+clean_logical <- function(df) {
+  df %>% replace_na(0) %>% as.logical()
+}
+
+# convenience function to cast a column to numerics and replace all values that 
+# could not be case with 0
+clean_numeric <- function(df) {
+  df %>% as.numeric %>% replace_na(0)
+}
+
+# convenience function to replace filler strings with an NA token
+clean_filler <- function(df) {
+  df[df == "NULL"] <- NA
+  df[df == "NONE"] <- NA
+  df[df == "NA"] <- NA  
+  df
+}
+
+clean_inf <- function(df) {
+  df[!is.finite(df)] <- NA
+  df
+}
+
+# convenience function to create an ordered factor with the days of the week
+daysOfWeek      <- c("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+create_dow <- function(dt) {
+  ordered(weekdays(dt, abbreviate=T), levels=daysOfWeek)
+}
+
+# Convenience function to parse dates when the basic lubridate functions
+# have a hard time because of atypical formats
+quietly_parse_date_time <- quietly(parse_date_time)
+
+parse_date <- function(x) {
+  time_formats <- c("mdY", "mdY HMS p", "mdY HM p", "mdY HMS", "mdY HM", "Ymd")
+  r <- quietly_parse_date_time(x, time_formats)
+  if (!is_null(r$warnings) & length(grep("formats failed to parse", r$warnings, fixed=T)) > 0) {
+    return(x)
+  }
+  return(r$result)
+}
+
+
+# Convenience function for recoding a factor column
+# expects a list which performs the mapping
+factor_recode <- function(char_vec, level_key) {
+	recode(char_vec, !!!level_key)
+}
+
+correct_types <- function(df) {
+  df %>% 
+    # mutate_at(vars(ends_with("Date")), ymd) %>% 
+    # mutate_at(vars(ends_with("ID")), as.character) %>% 
+    # mutate_at(vars(ends_with("NUMBER")), as.character) %>%   
+    mutate_if(is.character, replace_non_ascii) %>% 
+    mutate_if(is.character, str_to_upper) %>% 
+    mutate_if(is.character, str_trim) %>%   
+    mutate_if(is.char_logical, logical_recode) %>% 
+    distinct()
+}
+
+```
+
+
+# CONSTANTS
+```{r constants}
+# minDate <- as.Date("2017-01-01")
+# maxDate <- as.Date("2019-12-31")
+```
+
+# FILE I/O
+
+```{r file_io}
+dataDir <- "../data/"
+origDataFile  <- "INPUT_FILENAME.csv"
+cleanDataFile <- "CLEAN_FILENAME.csv"
+
+rawDF <- (paste0(dataDir, origDataFile))
+
+skim(rawDF)
+```
+
+# Model training
+
+## Feature extraction and rep
+
+First let's get rid of the things we don't care about or are not available at the time the record is created. In some cases, the info is sort of available (e.g the count of touches) but is, or should be, 0
+```{r}
+features <- firstSummaryDF %>% 
+  select(
+         -hours_to_initial,
+         -note_count,
+         -ends_with("touches"),
+         -ends_with("requests"),
+         -ends_with("letters"),
+         -starts_with("days_to_first"),
+         -starts_with("days_to_last"),
+         -final_account_position,
+         -is_paid,
+         -actual_placement, 
+         -created_date, 
+         -note_date_time, 
+         -placement_date,
+         -facility_id                    # handled by facility name
+  )
+```
+
+
+
+```{r}
+recipeDF <- recipe(final_outcome_is_paid ~ ., data = features) %>% 
+  step_other(all_predictors(), -all_numeric(), threshold=0.025, other="OTHER") %>% 
+  step_unknown(all_predictors(), -all_numeric(), new_level = "UNKNOWN") %>% 
+  step_dummy(all_predictors(), -all_numeric()) %>% 
+  prep(training = features)
+
+summary(recipeDF)
+```
+
+
+Create a split data set for training / testing and then apply the recipe.
+```{r}
+set.seed(102)
+
+# by default a 75% train / test split
+train_test_split <- initial_split(features)
+
+f_train <- training(train_test_split)
+f_test <- testing(train_test_split)
+
+train_data <- bake(recipeDF, new_data = f_train)
+test_data  <- bake(recipeDF, new_data = f_test)
+
+# Need to transform them into a structure that xgboost understands
+dtrain <- xgb.DMatrix(
+  data = data.matrix(select(train_data, -final_outcome_is_paid)),
+  label = data.matrix(select(train_data, final_outcome_is_paid)))
+
+dtest <- xgb.DMatrix(
+  data = data.matrix(select(test_data, -final_outcome_is_paid)),
+  label = data.matrix(select(test_data, final_outcome_is_paid)))
+```
+
+## Train using default xgboost parameters
+The xgboost training and tuning follows the example given in 
+[Training](https://www.hackerearth.com/practice/machine-learning/machine-learning-algorithms/beginners-tutorial-on-xgboost-parameter-tuning-r/tutorial/)
+
+Cross-validate and train with these defaults
+```{r}
+# start with the default parameters
+set.seed(1234)
+params <- list(booster = "gbtree", 
+               objective = "binary:logistic", 
+               eta=0.3, 
+               gamma=0, 
+               max_depth=6, 
+               min_child_weight=1, 
+               subsample=1, 
+               colsample_bytree=1)
+
+xgbcv <- xgb.cv(params = params, 
+                data = dtrain, 
+                nrounds = 100, 
+                nfold = 10,
+                showsd = T, 
+                stratified = T, 
+                print_every_n = 10, 
+                early_stopping_rounds = 20, 
+                maximize = F,
+                eval_metric = "error")
+```
+
+Go back and use the model corresponding to the best iteration. Not sure this is doing what I expect it to do, but the results don't change very much
+```{r}
+#first default - model training
+set.seed(1234)
+xgb_optimal <- xgb.train (params = params, 
+                   data = dtrain, 
+                   nrounds = xgbcv$best_iteration, 
+                   watchlist = list(val=dtest,train=dtrain), 
+                   print_every_n = 10, 
+                   early_stop_round = 20, 
+                   maximize = F ,
+                   eval_metric = "error")
+```
+
+Predict the model and check the confusion matrix. Use a value of 0.5 for cutoff. Note: I did some quick tests in the neighborhood of
+0.5 and this seemed to be roughly optimal. Makes sense to build a ROC curve as well at some point.
+```{r}
+#model prediction
+xgbpred <- predict (xgb_optimal,dtest)
+xgbpred <- ifelse (xgbpred > 0.5,1,0)
+
+confusionMatrix (as.factor(xgbpred), as.factor(f_test$final_outcome_is_paid), positive ="1")
+```
+
+
+Plot the importance variables. They should be basically the same as what I created for the last 
+workshop but best to check
+```{r fig.height=6, fig.width=12}
+mat <- xgb.importance (model = xgb_optimal)
+mat %>% arrange(Gain) %>% 
+  ggplot() +
+  geom_bar(aes(x=reorder(Feature,Gain), y=Gain), stat="identity", fill='salmon') +
+  coord_flip()
+```
+
+
+```{r}
+min(xgbcv$evaluation_log$test_error_mean)
+```
+
+
+## Parameter Optimization for XGBoost
+
+Now, try to use mlr to learn the optimal parameters settings
+```{r}
+# need to rework the variables a bit to make them work with mlr
+# mlr wants factors for the classifier targets, not numerical
+f_train_new <- train_data %>% 
+  mutate(target = as.factor(final_outcome_is_paid)) %>% 
+  select(-final_outcome_is_paid)
+
+f_test_new <- test_data %>% 
+  mutate(target = as.factor(final_outcome_is_paid)) %>% 
+  select(-final_outcome_is_paid)
+
+
+# set up the tasks for the lerner
+traintask <- makeClassifTask (data = f_train_new, 
+                              target = "target")
+
+testtask <- makeClassifTask (data = f_test_new,
+                             target = "target")
+
+# Set up the learner
+lrn <- makeLearner("classif.xgboost", predict.type = "response")
+
+lrn$par.vals <- list( objective="binary:logistic", 
+                      eval_metric="error", 
+                      nrounds=500L)
+
+#set parameter space I'll search over
+params <- makeParamSet(
+  makeDiscreteParam("booster",values = c("gbtree")),
+  makeIntegerParam("max_depth",lower = 3L,upper = 10L),
+  makeNumericParam("eta",lower = 0.05, upper = 0.3),  
+  makeNumericParam("min_child_weight",lower = 1L,upper = 10L),
+  makeNumericParam("subsample",lower = 0.5,upper = 1),
+  makeNumericParam("colsample_bytree",lower = 0.5,upper = 1))
+
+#set resampling strategy
+rdesc <- makeResampleDesc("CV",stratify = T,iters=5L)
+
+#search strategy
+ctrl <- makeTuneControlRandom(maxit = 10L)
+
+#set parallel backend
+parallelStartSocket(cpus = detectCores())
+
+#parameter tuning
+mytune <- tuneParams(learner = lrn, 
+                     task = traintask, 
+                     resampling = rdesc, 
+                     measures = acc, 
+                     par.set = params, 
+                     control = ctrl, 
+                     show.info = T)
+```
+
+Now that I have the optimal set of parameters, let's go back and train the model
+```{r}
+#set hyperparameters
+lrn_tune <- setHyperPars(lrn,par.vals = mytune$x)
+
+#train model
+xgmodel <- mlr::train(learner=lrn_tune,task = traintask)
+```
+
+Finally, let's predict the model using this "optimal" trained xgboost. 
+Will also print out the confusion matrix for the results
+```{r}
+#predict model
+xgpred <- predict(xgmodel,testtask)
+
+confusionMatrix(xgpred$data$response,xgpred$data$truth, positive = "1")
+```
+
+## Descriptive Stats for Training and Test Set
+in order to understand the overall performance, I'm going to figure out how the training set (i.e. the historicals effectively) compares to the test set. Basic idea here is that this comparison will allow me to judge if something in the feature set for the test set is actually driving the performance (good or bad). 
+
+Note: the overall performance against the test set is slightly less than the historical return rate, so at least some of the variables should be different. Presumably they'll be different in the way I expect (ie. a "bad variable" will be worse than historical average)
+```{r}
+f_train %>% summary()
+```
+
+Pull everything together and compute the relative error. There's probably some clever way to build my dashboard using the results of vip and these results, but save that for another day.
+```{r rows.print=20}
+train_summary <- train_data %>%
+  group_by() %>% 
+  summarize_all(mean, na.rm=T) %>% 
+  pivot_longer(everything(), names_to = "lever", values_to = "historical")
+
+test_summary <- test_data %>% 
+  group_by() %>% 
+  summarize_all(mean, na.rm=T) %>% 
+  pivot_longer(everything(), names_to = "lever", values_to = "test")
+
+summ <- train_summary %>% 
+  left_join(test_summary, by="lever") %>% 
+  mutate(delta = test - historical, 
+         relative = delta / historical)
+
+summ
+```
+
+```{r}
+nrow(f_train)
+nrow(f_test)
+```
+
+# JOURNEY ANALYSIS
+```{r}
+set.seed(9999)
+accountsDF <- cleanDF %>% 
+  select(id) %>% 
+  distinct() %>% 
+  sample_n(50) %>%
+  arrange(id) %>% 
+  mutate(idx = row_number())
+
+sampleDF <- cleanDF %>% inner_join(accountsDF, by="id")
+```
+
+```{r}
+patientsDB <- cleanDF %>% 
+  select(id, 
+         balance,
+         facility_name, 
+         days_length_of_stay, 
+         number_of_insurers, 
+         starts_with("has"),
+         patient_age, 
+         patient_zip_code,
+         tgt = final_outcome_is_paid) %>% 
+  group_by(id) %>% 
+  summarize_all(max, na.rm=T) %>% 
+  mutate(tgt=as.factor(tgt))   
+
+
+events_touch <- cleanDF %>% 
+  select(dt = note_date_time,
+         id,
+         event_class = event_type,
+         ends_with("touches"),
+         ends_with("requests"),
+         ends_with("letters"))  %>% 
+  select(-starts_with("total")) %>% 
+  pivot_longer(cols = c(ends_with("touches"), 
+               ends_with("requests"), 
+               ends_with("letters")), 
+               names_to="event_data",
+               values_to="data" ) %>% 
+  filter(data != 0) %>% 
+  filter(!is.na(event_data)) %>% 
+  distinct() %>% 
+  extract(event_data, c("event_desc", "event"), "([[[:alnum:]]+_]*)_([[:alnum:]]+)$")
+   
+
+eventsDB <- patientsDB %>% 
+  left_join(events_touch, by="id") %>% 
+  filter(!is.na(event)) %>% 
+  distinct() 
+```
+
+```{r, fig.height=8, fig.width=8}
+touchEvents <- eventsDB %>% filter(event == "touches")
+requestEvents <- eventsDB %>% filter(event == "requests")
+letterEvents <- eventsDB %>% filter(event == "letters")
+
+eventsDB %>% ggplot() +
+  geom_point(data=eventsDB, aes(x=dt, y=id, color=tgt),size=2)
+
+
+```
+
+```{r}
+features %>% 
+  tabyl(created_by_user, final_outcome_is_paid) %>% 
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_ns() 
+```
+
