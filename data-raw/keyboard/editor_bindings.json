@@ -1,2 +1,19 @@
 {
+    "blockindent" : "",
+    "blockoutdent" : "",
+    "duplicateSelection" : "",
+    "gotoend" : "Ctrl+Shift+Alt+.",
+    "gotopagedown" : "Ctrl+V",
+    "gotopageup" : "Ctrl+Shift+Alt+V",
+    "gotostart" : "Ctrl+Shift+Alt+,",
+    "gotowordleft" : "Ctrl+Shift+Alt+B",
+    "gotowordright" : "Ctrl+Shift+Alt+F",
+    "modifyNumberUp" : "Ctrl+Shift+Up",
+    "outdent" : "",
+    "removetolineend" : "Alt+Delete",
+    "removewordleft" : "Ctrl+Shift+Alt+Backspace",
+    "removewordright" : "Ctrl+Shift+Alt+D",
+    "tolowercase" : "Ctrl+X L",
+    "touppercase" : "Ctrl+X U",
+    "undo" : "Ctrl+Shift+-"
 }

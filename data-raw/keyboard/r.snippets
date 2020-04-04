@@ -1,0 +1,163 @@
+# Package management
+snippet lib
+	library(${1:package})
+
+snippet req
+	require(${1:package})
+
+snippet src
+	source("${1:file.R}")
+
+# dplyr / tidy
+
+snippet aa
+	${1:dataset} <- ${1:dataset} %>% 
+		${0}
+
+snippet gro
+	group_by(${1:condition})
+
+snippet mut
+	mutate(${1:condition})
+
+snippet sel
+	select(${1:condition})
+
+snippet fil
+	filter(${1:condition})
+
+snippet sum
+	summarize(${1:condition})
+
+snippet arr
+	arrange(${1:condition})
+
+snippet arrd
+	arrange(${1:condition}, ascending=False)
+
+snippet mut
+	mutate(${1:condition})
+
+## ggplot
+snippet ggp
+	${1:dataset} <- ggplot() +
+		${0}
+
+snippet pt
+	geom_scatter(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet line
+	geom_line(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet bar
+	geom_bar(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet hist
+	geom_histogram(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet dens
+	geom_density(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet step
+	geom_step(aes(x=${1:x_variable}, y=${2:y_variable}))
+
+snippet zoom
+	coord_cartesian(xlim=c(${1:xmin}, ${2:xmax}), ylim=c(${3:ymin}, ${4:ymax}))
+
+snippet clip
+	scale_x_continuous(limits=c(${1:xmin}, ${2:xmax})) +
+	scale_y_continuous(limits=c(${3:ymin}, ${4:ymax}))
+
+snippet text
+	geom_text(aes(label={$1:label}, x=${2:x_variable}, y=${3:y_variable}))
+
+snippet lab
+	labs(title="${1:title}", x="${2:xtitle}", y="${3:ytitle}")
+
+snippet xlab
+	xlab("${1:title}")
+
+snippet ylab
+	ylab("${1:title}")
+
+snippet title
+	ggtitle("${1:title}")
+
+# function definition
+snippet fun
+	function(${1:variables}) {
+		${0}
+	}
+
+snippet ret
+	return(${1:code})
+
+# Conditionals
+snippet if
+	if (${1:condition}) {
+		${0}
+	}
+
+snippet el
+	else {
+		${0}
+	}
+
+snippet elif
+	else if (${1:condition}) {
+		${0}
+	}
+
+# loops / functional programming
+snippet for
+	for (${1:variable} in ${2:vector}) {
+		${0}
+	}
+
+snippet while
+	while (${1:condition}) {
+		${0}
+	}
+
+snippet switch
+	switch (${1:object},
+		${2:case} = ${3:action}
+	)
+
+# shiny
+snippet shinyapp
+	library(shiny)
+
+	ui <- fluidPage(
+	  ${0}
+	)
+
+	server <- function(input, output, session) {
+
+	}
+
+	shinyApp(ui, server)
+
+snippet shinymod
+	${1:name}_UI <- function(id) {
+	  ns <- NS(id)
+	  tagList(
+		${0}
+	  )
+	}
+
+	${1:name} <- function(input, output, session) {
+
+	}
+
+
+# Execution
+snippet ts
+	`r paste("#", date(), "------------------------------\n")`
+
+snippet ts
+	`r paste("#", date(), "------------------------------\n")`
+
+snippet !
+	`r eval(parse(text = "$$"))`
+
