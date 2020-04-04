@@ -1,5 +1,5 @@
 ---
-title: "Data Prep"
+title: "Data Cleansing and Prep"
 author: "John J. Fox"
 date: "The Date"
 output: html_notebook
@@ -162,7 +162,7 @@ correct_types <- function(df) {
 ```{r file_io}
 dataDir <- "../data/"
 origDataFile  <- "INPUT_FILENAME.csv"
-cleanDataFile <- "OUTPUT_FILENAME.csv"
+cleanDataFile <- "CLEAN_FILENAME.csv"
 
 rawDF <- (paste0(dataDir, origDataFile))
 
@@ -206,4 +206,3 @@ inspect_cat(cleanDF) %>% show_plot()
 ```{r}
 save(paste0(dataDir, cleanDataFile))
 ```
-
