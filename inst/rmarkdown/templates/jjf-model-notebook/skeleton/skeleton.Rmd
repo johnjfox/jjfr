@@ -7,7 +7,7 @@ output: html_notebook
 
 # SETUP
 
-## Libraries
+## Libraries & Function
 ```{r setup, include=FALSE, echo=F}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -38,6 +38,20 @@ library(feasts)
 
 # run times
 library(tictoc)
+
+# model libraries
+library(parallel)
+library(doParallel)
+library(parallelMap)
+library(recipes)
+library(modelr)
+library(tidymodels)
+library(xgboost)
+library(vip)
+library(broom)
+library(xgboost)
+library(caret)
+library(mlr)
 
 # Default color palette
 
@@ -164,41 +178,25 @@ dataDir <- "../data/"
 origDataFile  <- "INPUT_FILENAME.csv"
 cleanDataFile <- "CLEAN_FILENAME.csv"
 
-rawDF <- (paste0(dataDir, origDataFile))
+load(paste(dataDir, origDataFile))
 
-skim(rawDF)
+skim(cleanDF)
 ```
 
-# Model training
+# MODEL TRAINING
 
-## Feature extraction and rep
+## Feature extraction
 
 First let's get rid of the things we don't care about or are not available at the time the record is created. In some cases, the info is sort of available (e.g the count of touches) but is, or should be, 0
 ```{r}
-features <- firstSummaryDF %>% 
-  select(
-         -hours_to_initial,
-         -note_count,
-         -ends_with("touches"),
-         -ends_with("requests"),
-         -ends_with("letters"),
-         -starts_with("days_to_first"),
-         -starts_with("days_to_last"),
-         -final_account_position,
-         -is_paid,
-         -actual_placement, 
-         -created_date, 
-         -note_date_time, 
-         -placement_date,
-         -facility_id                    # handled by facility name
-  )
+features <- cleanDF %>% 
+  select(target = SOME_TGT_VARIABLE,
+  			-COLUMNS_I_DONT_WANT)
 ```
 
-
-
 ```{r}
-recipeDF <- recipe(final_outcome_is_paid ~ ., data = features) %>% 
-  step_other(all_predictors(), -all_numeric(), threshold=0.025, other="OTHER") %>% 
+recipeDF <- recipe(target ~ ., data = features) %>% 
+  step_other(all_predictors(), -all_numeric(), threshold=0.05, other="OTHER") %>% 
   step_unknown(all_predictors(), -all_numeric(), new_level = "UNKNOWN") %>% 
   step_dummy(all_predictors(), -all_numeric()) %>% 
   prep(training = features)
@@ -222,12 +220,12 @@ test_data  <- bake(recipeDF, new_data = f_test)
 
 # Need to transform them into a structure that xgboost understands
 dtrain <- xgb.DMatrix(
-  data = data.matrix(select(train_data, -final_outcome_is_paid)),
-  label = data.matrix(select(train_data, final_outcome_is_paid)))
+  data = data.matrix(select(train_data, -target)),
+  label = data.matrix(select(train_data, target)))
 
 dtest <- xgb.DMatrix(
-  data = data.matrix(select(test_data, -final_outcome_is_paid)),
-  label = data.matrix(select(test_data, final_outcome_is_paid)))
+  data = data.matrix(select(test_data, -target)),
+  label = data.matrix(select(test_data, target)))
 ```
 
 ## Train using default xgboost parameters
@@ -307,13 +305,10 @@ Now, try to use mlr to learn the optimal parameters settings
 # need to rework the variables a bit to make them work with mlr
 # mlr wants factors for the classifier targets, not numerical
 f_train_new <- train_data %>% 
-  mutate(target = as.factor(final_outcome_is_paid)) %>% 
-  select(-final_outcome_is_paid)
+  mutate(target = as.factor(target))
 
 f_test_new <- test_data %>% 
-  mutate(target = as.factor(final_outcome_is_paid)) %>% 
-  select(-final_outcome_is_paid)
-
+  mutate(target = as.factor(target)) 
 
 # set up the tasks for the lerner
 traintask <- makeClassifTask (data = f_train_new, 
@@ -408,74 +403,9 @@ nrow(f_train)
 nrow(f_test)
 ```
 
-# JOURNEY ANALYSIS
-```{r}
-set.seed(9999)
-accountsDF <- cleanDF %>% 
-  select(id) %>% 
-  distinct() %>% 
-  sample_n(50) %>%
-  arrange(id) %>% 
-  mutate(idx = row_number())
-
-sampleDF <- cleanDF %>% inner_join(accountsDF, by="id")
-```
-
-```{r}
-patientsDB <- cleanDF %>% 
-  select(id, 
-         balance,
-         facility_name, 
-         days_length_of_stay, 
-         number_of_insurers, 
-         starts_with("has"),
-         patient_age, 
-         patient_zip_code,
-         tgt = final_outcome_is_paid) %>% 
-  group_by(id) %>% 
-  summarize_all(max, na.rm=T) %>% 
-  mutate(tgt=as.factor(tgt))   
-
-
-events_touch <- cleanDF %>% 
-  select(dt = note_date_time,
-         id,
-         event_class = event_type,
-         ends_with("touches"),
-         ends_with("requests"),
-         ends_with("letters"))  %>% 
-  select(-starts_with("total")) %>% 
-  pivot_longer(cols = c(ends_with("touches"), 
-               ends_with("requests"), 
-               ends_with("letters")), 
-               names_to="event_data",
-               values_to="data" ) %>% 
-  filter(data != 0) %>% 
-  filter(!is.na(event_data)) %>% 
-  distinct() %>% 
-  extract(event_data, c("event_desc", "event"), "([[[:alnum:]]+_]*)_([[:alnum:]]+)$")
-   
-
-eventsDB <- patientsDB %>% 
-  left_join(events_touch, by="id") %>% 
-  filter(!is.na(event)) %>% 
-  distinct() 
-```
-
-```{r, fig.height=8, fig.width=8}
-touchEvents <- eventsDB %>% filter(event == "touches")
-requestEvents <- eventsDB %>% filter(event == "requests")
-letterEvents <- eventsDB %>% filter(event == "letters")
-
-eventsDB %>% ggplot() +
-  geom_point(data=eventsDB, aes(x=dt, y=id, color=tgt),size=2)
-
-
-```
-
 ```{r}
 features %>% 
-  tabyl(created_by_user, final_outcome_is_paid) %>% 
+  tabyl(created_by_user, target) %>% 
   adorn_percentages("row") %>%
   adorn_pct_formatting(digits = 2) %>%
   adorn_ns() 
