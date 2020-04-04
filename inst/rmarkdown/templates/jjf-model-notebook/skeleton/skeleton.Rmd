@@ -398,16 +398,4 @@ summ <- train_summary %>%
 summ
 ```
 
-```{r}
-nrow(f_train)
-nrow(f_test)
-```
-
-```{r}
-features %>% 
-  tabyl(created_by_user, target) %>% 
-  adorn_percentages("row") %>%
-  adorn_pct_formatting(digits = 2) %>%
-  adorn_ns() 
-```
 
